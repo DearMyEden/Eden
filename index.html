@@ -342,6 +342,34 @@
 
   /* ───── 휴지통 창 (파일 탐색기처럼) ───── */
   .stage.trash-stage { z-index: 5; }
+  /* ───── 메모장 창 ───── */
+  .stage.note-stage { z-index: 6; }
+  .notepad {
+    pointer-events: auto; position: relative; flex-shrink: 0;
+    width: 620px; height: 440px;
+    transform: scale(var(--s, 1));
+    display: flex; flex-direction: column;
+    font-size: 12px;
+    background: var(--white);
+    border: 1px solid var(--line-2); border-radius: 10px;
+    box-shadow: 0 24px 60px rgba(150,120,130,.18);
+    animation: open .35s ease;
+    overflow: hidden;
+  }
+  .n-menu { display: flex; gap: 2px; padding: 3px 8px; border-bottom: 1px solid var(--line); }
+  .n-menu span { padding: 2px 8px; border-radius: 4px; color: var(--ink); cursor: default; }
+  .n-menu span:hover { background: var(--ash-soft); }
+  .n-text {
+    flex: 1; min-height: 0; width: 100%;
+    padding: 12px 16px;
+    font: inherit; font-size: 13px; line-height: 1.8; color: var(--ink);
+    background: var(--white); border: none; outline: none; resize: none;
+    white-space: pre-wrap; user-select: text;
+    scrollbar-color: var(--line-2) transparent;
+  }
+  .n-text::selection { background: var(--ash-soft); color: var(--ash-deep); }
+  .n-status { display: flex; justify-content: flex-end; border-top: 1px solid var(--line); color: var(--muted); background: var(--paper); }
+  .n-status span { padding: 4px 14px; border-left: 1px solid var(--line); }
   .trash {
     pointer-events: auto;
     position: relative;
@@ -489,6 +517,17 @@
           <path d="M34 6 V14 H42" fill="#f3e9eb"/>
           <path d="M19 22 H37 M19 28 H37 M19 34 H31" stroke="#e0d3d7"/>
           <path d="M33 40 l6 6 M39 40 l-6 6" stroke="#c9a7ae" stroke-width="1.4"/>
+        </g>
+      </symbol>
+      <!-- 메모장: 스프링 수첩 -->
+      <symbol id="i-note" viewBox="0 0 56 56">
+        <g fill="none" stroke="#a8868e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="12" y="10" width="32" height="40" rx="2.5" fill="#fff"/>
+          <path d="M12 17 H44" stroke="#c9a7ae"/>
+          <rect x="12" y="10" width="32" height="7" rx="2.5" fill="#f3e9eb" stroke="#c9a7ae"/>
+          <path d="M18 7 v6 M24 7 v6 M30 7 v6 M36 7 v6" stroke="#a8868e" stroke-width="1.6"/>
+          <path d="M17 24 H39 M17 30 H39 M17 36 H33 M17 42 H28" stroke="#e0d3d7"/>
+          <path d="M34 44 c-1.6 -1.2 -2.7 -2.1 -1.8 -3.1 c.7 -.7 1.8 -.1 1.8 .6 c0 -.7 1.1 -1.3 1.8 -.6 c.9 1 -.2 1.9 -1.8 3.1 z" fill="#c9a7ae" stroke="none"/>
         </g>
       </symbol>
       <!-- 절대 바이러스…: 미니홈피 창 -->
@@ -687,6 +726,18 @@
   </div>
 
   <!-- ───── 휴지통 ───── -->
+  <div class="stage note-stage hidden" id="noteStage">
+    <section class="notepad" aria-label="메모장">
+      <div class="t-title">
+        <svg viewBox="0 0 56 56"><use href="#i-note"/></svg><span class="name" id="noteTitle">메모장</span>
+        <button id="noteMin" aria-label="최소화">─</button><button aria-label="최대화">□</button><button class="x" id="closeNote" aria-label="닫기">✕</button>
+      </div>
+      <div class="n-menu"><span>파일</span><span>편집</span><span>서식</span><span>보기</span><span>도움말</span></div>
+      <textarea class="n-text" id="noteText" readonly spellcheck="false"></textarea>
+      <div class="n-status"><span id="notePos">줄 1, 열 1</span><span id="noteLen">0자</span><span>100%</span><span>UTF-8</span></div>
+    </section>
+  </div>
+
   <div class="stage trash-stage hidden" id="trashStage">
     <section class="trash" id="trashWin" aria-label="휴지통">
       <div class="t-title">
@@ -723,15 +774,31 @@
    name : 아이콘 아래 이름
    url  : 이동할 주소 ("#about" 이면 미니홈피가 열려요)
    icon : heart(하트) / gacha(가챠 카드) / otome(미연시) / potion(RPG 물약) / letter(편지) / camera(카메라)
-          angel(미니홈피) / trash(휴지통)
+          note(메모장) / angel(미니홈피) / trash(휴지통)
    url  : "#trash" 면 휴지통 창이 열려요
    ========================================================= */
 const LINKS = [
   { name: "휴지통",     url: "#trash",                    icon: "trash"  },
   { name: "페일리",     url: "https://palely.me/@s0lace/#home",      icon: "gacha"  },
   { name: "티스토리",   url: "https://marchen03.tistory.com/",      icon: "otome"  },
+  { name: "메모장",     url: "#note",                     icon: "note"   },
   { name: "절대 바이러스 아닙니다... 저는 샤입니다", url: "#about", icon: "angel" },
 ];
+
+/* 📝 메모장
+   NOTE_TITLE : 창 위에 뜨는 파일 이름
+   NOTE_TEXT  : 메모장에 보이는 글. 백틱(`) 사이에 쓰면 줄바꿈이 그대로 보여요.
+               (글 안에 ` 기호는 쓰지 말아 주세요) */
+const NOTE_TITLE = "샤의 메모.txt";
+const NOTE_TEXT = `안녕하세요, 샤예요.
+
+여기는 그냥 생각나는 걸 적어두는 곳.
+지우지 않고 계속 덧붙여 갈 거예요.
+
+- 좋아하는 것: 분홍색, 도트, 옛날 인터넷
+- 요즘 하는 것: 홈페이지 꾸미기
+- 오늘의 기분: 평온 ♡
+`;
 
 /* 🗑 휴지통 속 파일들
    name  : 파일 이름 · from: 원래 위치 · date: 삭제한 날짜 · size: 크기
@@ -830,8 +897,8 @@ LINKS.forEach(link => {
   const a = document.createElement("a");
   a.className = "icon";
   a.href = link.url;
-  const isAbout = link.url === "#about", isTrash = link.url === "#trash";
-  if (OPEN_IN_NEW_TAB && !isAbout && !isTrash && !link.url.startsWith("mailto:")) {
+  const isAbout = link.url === "#about", isTrash = link.url === "#trash", isNote = link.url === "#note";
+  if (OPEN_IN_NEW_TAB && !isAbout && !isTrash && !isNote && !link.url.startsWith("mailto:")) {
     a.target = "_blank";
     a.rel = "noopener noreferrer";
   }
@@ -844,6 +911,7 @@ LINKS.forEach(link => {
     a.classList.add("selected");
     if (isAbout) { e.preventDefault(); openHompy(); }
     if (isTrash) { e.preventDefault(); openTrash(); }
+    if (isNote) { e.preventDefault(); openNote(); }
   });
   desktop.appendChild(a);
 });
@@ -854,12 +922,13 @@ desktop.addEventListener("click", e => {
 
 /* 아이콘 옆 빈 화면 가운데에 띄우고, 화면이 작으면 통째로 축소 */
 const trashStage = document.getElementById("trashStage");
+const noteStage = document.getElementById("noteStage");
 function placeStage() {
   const icons = [...desktop.children];
   let left = Math.max(0, ...icons.map(x => x.getBoundingClientRect().right)) + 8;
   if (innerWidth - left < 520) left = 0;   // 모바일: 화면 전체 기준 가운데
   const pad = left === 0 ? 20 : 40;
-  [[stage, 860, 560], [trashStage, 700, 450]].forEach(([st, w, h]) => {
+  [[stage, 860, 560], [trashStage, 700, 450], [noteStage, 620, 440]].forEach(([st, w, h]) => {
     st.style.setProperty("--icons-right", left + "px");
     const s = Math.min(1, (innerWidth - left - pad) / w, (innerHeight - 46 - pad) / h);
     st.style.setProperty("--s", s.toFixed(3));
@@ -945,7 +1014,28 @@ document.getElementById("trashRestore").onclick = () => trashToast("돌아갈 �
 document.getElementById("trashRestoreOne").onclick = () => trashToast(document.querySelector(".t-file.on") ? "이 파일은 여기 있어야 해요." : "먼저 항목을 선택해 주세요.");
 document.getElementById("closeTrash").onclick = () => trashStage.classList.add("hidden");
 document.getElementById("trashMin").onclick = () => trashStage.classList.add("hidden");
-addEventListener("keydown", e => { if (e.key === "Escape") trashStage.classList.add("hidden"); });
+addEventListener("keydown", e => { if (e.key === "Escape") { trashStage.classList.add("hidden"); noteStage.classList.add("hidden"); } });
+
+/* ───── 메모장 ───── */
+const noteText = document.getElementById("noteText");
+function openNote() {
+  placeStage();
+  document.getElementById("noteTitle").textContent = `${NOTE_TITLE} - 메모장`;
+  noteText.value = NOTE_TEXT;
+  document.getElementById("noteLen").textContent = `${NOTE_TEXT.length}자`;
+  notePos();
+  noteStage.classList.remove("hidden");
+  const w = noteStage.querySelector(".notepad");
+  w.style.animation = "none"; void w.offsetWidth; w.style.animation = "";
+  noteText.scrollTop = 0;
+}
+function notePos() {
+  const before = noteText.value.slice(0, noteText.selectionStart).split("\n");
+  document.getElementById("notePos").textContent = `줄 ${before.length}, 열 ${before[before.length - 1].length + 1}`;
+}
+["click", "keyup", "select"].forEach(ev => noteText.addEventListener(ev, notePos));
+document.getElementById("closeNote").onclick = () => noteStage.classList.add("hidden");
+document.getElementById("noteMin").onclick = () => noteStage.classList.add("hidden");
 
 /* 사진첩 */
 (() => {
